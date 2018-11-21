@@ -3,8 +3,13 @@
 #include "lib/rapidjson/document.h"
 #include "lib/rapidjson/stringbuffer.h"
 #include "lib/main.h"
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 
 using namespace rapidjson;
+
+
 
 Server::Server(unsigned int port) {
 	struct sockaddr_in server;
@@ -86,13 +91,18 @@ void Server::checkRecvMessage() {
 	json[bytesRead] = '\0';
 	bytesRead = 0;
 	recvMessageLen = 0;
-
 	d.Parse(json);
 
 	if (d.HasMember("commands")) {
 		printf("Commands received\n");
 		const Value& commands = d["commands"];
+		//printf("mk_%4.2f \n", commands["time"].GetFloat());
 		scenario.setCommands(commands["throttle"].GetFloat(), commands["brake"].GetFloat(), commands["steering"].GetFloat());
+
+		std::ofstream myfile;
+		myfile.open("rtt.txt");
+		myfile << commands["time"].GetInt64();
+		myfile.close();
 	}
 	else if (d.HasMember("config")) {
 		//Change the message values and keep the others the same

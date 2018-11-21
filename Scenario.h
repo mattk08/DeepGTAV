@@ -27,7 +27,7 @@ private:
 	Cam camera = NULL;
 	Vector3 dir;
 
-	float x, y;
+	float x, y, z, h;
 	int hour, minute;
 	const char* _weather;
 	const char* _vehicle;

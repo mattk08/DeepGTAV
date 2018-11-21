@@ -6,6 +6,12 @@
 #include "Rewarders\SpeedRewarder.h"
 #include "defaults.h"
 #include <time.h>
+#include <chrono>
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+#include <windows.h>
+
 
 char* Scenario::weatherList[14] = { "CLEAR", "EXTRASUNNY", "CLOUDS", "OVERCAST", "RAIN", "CLEARING", "THUNDER", "SMOG", "FOGGY", "XMAS", "SNOWLIGHT", "BLIZZARD", "NEUTRAL", "SNOW" };
 char* Scenario::vehicleList[3] = { "blista", "voltic", "packer" };
@@ -23,6 +29,12 @@ void Scenario::parseScenarioConfig(const Value& sc, bool setDefaults) {
 
 		if (!location[1].IsNull()) y = location[1].GetFloat(); 
 		else if (setDefaults) y = 8000 * ((float)rand() / RAND_MAX) - 2000;
+
+		if (!location[2].IsNull()) z = location[2].GetFloat();
+		else if (setDefaults) z = 8000 * ((float)rand() / RAND_MAX) - 2000;
+
+		if (!location[3].IsNull()) h = location[3].GetFloat();
+		else if (setDefaults) h = 0;
 	}
 	else if (setDefaults) {
 		x = 5000 * ((float)rand() / RAND_MAX) - 2500;
@@ -153,15 +165,21 @@ void Scenario::buildScenario() {
 	while (!PATHFIND::_0xF7B79A50B905A30D(-8192.0f, 8192.0f, -8192.0f, 8192.0f)) WAIT(0);
 	PATHFIND::GET_CLOSEST_VEHICLE_NODE_WITH_HEADING(x, y, 0, &pos, &heading, 0, 0, 0);
 
+
 	ENTITY::DELETE_ENTITY(&vehicle);
 	vehicleHash = GAMEPLAY::GET_HASH_KEY((char*)_vehicle);
 	STREAMING::REQUEST_MODEL(vehicleHash);
 	while (!STREAMING::HAS_MODEL_LOADED(vehicleHash)) WAIT(0);
 	while (!ENTITY::DOES_ENTITY_EXIST(vehicle)) {
-		vehicle = VEHICLE::CREATE_VEHICLE(vehicleHash, pos.x, pos.y, pos.z, heading, FALSE, FALSE);
+		vehicle = VEHICLE::CREATE_VEHICLE(vehicleHash, x, y, z, h, FALSE, FALSE);
+		//vehicle = VEHICLE::CREATE_VEHICLE(vehicleHash, x, y, z, heading, FALSE, FALSE);
+		//vehicle = VEHICLE::CREATE_VEHICLE(vehicleHash, -2770.004, 1350.1740, 80.1725, heading, FALSE, FALSE);
+		//vehicle = VEHICLE::CREATE_VEHICLE(vehicleHash, pos.x, pos.y, pos.z, heading, FALSE, FALSE);
 		WAIT(0);
 	}
 	VEHICLE::SET_VEHICLE_ON_GROUND_PROPERLY(vehicle);
+	VEHICLE::SET_VEHICLE_ENGINE_ON(vehicle, TRUE, TRUE, TRUE);
+
 
 	while (!ENTITY::DOES_ENTITY_EXIST(ped)) {
 		ped = PLAYER::PLAYER_PED_ID();
@@ -184,7 +202,9 @@ void Scenario::buildScenario() {
 	camera = CAM::CREATE_CAM("DEFAULT_SCRIPTED_CAMERA", TRUE);
 	if (strcmp(_vehicle, "packer") == 0) CAM::ATTACH_CAM_TO_ENTITY(camera, vehicle, 0, 2.35, 1.7, TRUE);
 	else CAM::ATTACH_CAM_TO_ENTITY(camera, vehicle, 0, 0.5, 0.8, TRUE);
-	CAM::SET_CAM_FOV(camera, 60);
+	//CAM::SET_CAM_FOV(camera, 60);
+	CAM::SET_CAM_FOV(camera, 95);
+
 	CAM::SET_CAM_ACTIVE(camera, TRUE);
 	CAM::SET_CAM_ROT(camera, rotation.x, rotation.y, rotation.z, 1);
 	CAM::SET_CAM_INHERIT_ROLL_VEHICLE(camera, TRUE);
@@ -192,6 +212,8 @@ void Scenario::buildScenario() {
 
 	AI::CLEAR_PED_TASKS(ped);
 	if (_drivingMode >= 0) AI::TASK_VEHICLE_DRIVE_WANDER(ped, vehicle, _setSpeed, _drivingMode);
+	//if (_drivingMode >= 0) AI::TASK_VEHICLE_DRIVE_TO_COORD(ped, vehicle, 1183.234130859375, -2573.34228515625, 35.58555603027344, _setSpeed, 1.0, vehicleHash, 786603, 1.0, true);
+	//if  (_drivingMode >= 0) AI::TASK  
 }
 
 void Scenario::start(const Value& sc, const Value& dc) {
@@ -601,13 +623,34 @@ void Scenario::setYawRate(){
 void Scenario::setLocation(){
 	Document::AllocatorType& allocator = d.GetAllocator();
 	Vector3 pos = ENTITY::GET_ENTITY_COORDS(vehicle, false);
+	float h = ENTITY::GET_ENTITY_HEADING(vehicle); //mk
 	Value location(kArrayType);
-	location.PushBack(pos.x, allocator).PushBack(pos.y, allocator).PushBack(pos.z, allocator);
+	//location.PushBack(pos.x, allocator).PushBack(pos.y, allocator).PushBack(pos.z, allocator)
+	location.PushBack(pos.x, allocator).PushBack(pos.y, allocator).PushBack(pos.z, allocator).PushBack(h, allocator);
 	d["location"] = location;
 }
 
 void Scenario::setTime(){
-	d["time"] = TIME::GET_CLOCK_HOURS();
+	//d["time"] = TIME::GET_CLOCK_HOURS();
+
+	//using namespace std::chrono;
+	//milliseconds ms = duration_cast<milliseconds>(
+	//	system_clock::now().time_since_epoch()
+	//	);
+	//d["time"] = ms.count();
+
+	std::chrono::time_point<std::chrono::system_clock> now =
+		std::chrono::system_clock::now();
+
+	auto duration = now.time_since_epoch();
+	auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+	d["time"] = millis;
+
+	//std::ofstream myfile;
+	//myfile.open("game_time.txt");
+	//myfile << d["time"].GetInt64();
+	//myfile.close();
 }
 
 void Scenario::setDirection(){
